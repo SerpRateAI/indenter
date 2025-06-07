@@ -1,6 +1,7 @@
 # Merrypopins
 
 [![merrypopins CI Tests](https://github.com/SerpRateAI/merrypopins/actions/workflows/python-app.yml/badge.svg)](https://github.com/SerpRateAI/merrypopins/actions/workflows/python-app.yml)
+[![📘 Merrypopins Documentation](https://img.shields.io/badge/docs-view-blue?logo=readthedocs)](https://serprateai.github.io/merrypopins/)
 [![PyPI](https://img.shields.io/pypi/v/merrypopins.svg)](https://pypi.org/project/merrypopins/)
 [![Python](https://img.shields.io/pypi/pyversions/merrypopins.svg)](https://pypi.org/project/merrypopins/)
 [![codecov](https://codecov.io/gh/SerpRateAI/merrypopins/branch/main/graph/badge.svg)](https://codecov.io/gh/SerpRateAI/merrypopins)
@@ -22,7 +23,7 @@
   - Fourier-based derivative outlier detection
   - Savitzky-Golay smoothed gradient thresholds
 - **`statistics`**: Perform statistical analysis and model fitting on located pop‑in events (e.g., frequency, magnitude, distribution).
-- **`make_dataset`**: Combine raw measurements, metadata, and analysis outputs into a machine‑learning‑ready dataset.
+- **`make_dataset`**: Construct enriched datasets by running the full merrypopins pipeline and exporting annotated results and visualizations.
 
 Merrypopins is developed by [Cahit Acar](mailto:c.acar.business@gmail.com), [Anna Marcelissen](mailto:anna.marcelissen@live.nl), [Hugo van Schrojenstein Lantman](mailto:h.w.vanschrojensteinlantman@uu.nl), and [John M. Aiken](mailto:johnm.aiken@gmail.com).
 
@@ -31,7 +32,7 @@ Merrypopins is developed by [Cahit Acar](mailto:c.acar.business@gmail.com), [Ann
 ## Installation
 
 ```bash
-# From PyPI (⚠️ This will not work because package not published yet.)
+# From PyPI
 pip install merrypopins
 
 # For development
@@ -42,6 +43,7 @@ pip install -e .
 
 merrypopins supports Python 3.10+ and depends on:
 
+- `matplotlib`
 - `numpy`
 - `pandas`
 - `scipy`
@@ -61,6 +63,7 @@ from pathlib import Path
 from merrypopins.load_datasets import load_txt, load_tdm
 from merrypopins.preprocess import default_preprocess, remove_pre_min_load, rescale_data, finalise_contact_index
 from merrypopins.locate import default_locate
+from merrypopins.make_dataset import merrypopins_pipeline
 ```
 
 ### Load Indentation Data and Metadata
@@ -197,6 +200,59 @@ plt.title("Pop-in Detections by All Methods")
 plt.legend(); plt.grid(True); plt.tight_layout(); plt.show()
 ```
 
+### Run Full Pipeline with merrypopins_pipeline
+
+This function runs the entire merrypopins workflow, from loading data to locating pop-ins and generating visualizations.
+
+#### Define Input and Output Paths
+
+```python
+# Define the text file that will be processed and output directory that will contain the visualization
+text_file = Path("datasets/6microntip_slowloading/grain9_6um_indent03_HL_QS_LC.txt")
+output_dir = Path("visualisations/6microntip_slowloading/grain9_6um_indent03_HL_QS_LC")
+
+# Make sure output directory exists
+output_dir.mkdir(parents=True, exist_ok=True)
+```
+
+#### Run The merrypopins Pipeline
+
+```python
+df_pipeline = merrypopins_pipeline(
+    text_file,
+    save_plot_dir=output_dir,
+    trim_margin=30
+)
+```
+
+#### View Result DataFrame
+
+```python
+df_pipeline.head()
+```
+
+#### View Result Visualizations
+
+```python
+# The pipeline generates plot in the specified output directory for the provided text file.
+from PIL import Image
+import matplotlib.pyplot as plt
+
+# Load all PNGs from output folder
+image_paths = sorted(output_dir.glob("*.png"))
+
+# Only proceed if there are images
+if image_paths:
+    img = Image.open(image_paths[0])
+    plt.figure(figsize=(12, 6))
+    plt.imshow(img)
+    plt.title(image_paths[0].stem)
+    plt.axis('off')
+    plt.show()
+else:
+    print("No plots found in output folder.")
+```
+
 ---
 
 ## Development & Testing
@@ -246,9 +302,85 @@ Notes:
 
 ---
 
+## 📦 Run Merrypopins Streamlit App
+
+Merrypopins includes an interactive Streamlit app for visualizing and detecting pop-ins in indentation data. This app allows you to upload your data files, run the detection algorithms, and visualize the results in a user-friendly interface.
+
+### 🐳 Using Docker
+
+You can run the interactive Streamlit app for visualizing and detecting pop-ins directly using Docker.
+
+#### 🔧 Option 1: Build and Run Locally
+
+```bash
+# Clone the repo if not already
+git clone https://github.com/SerpRateAI/merrypopins.git
+cd merrypopins
+
+# Build the Docker image
+docker build -t merrypopins-app .
+
+# Run the app on http://localhost:8501
+docker run -p 8501:8501 merrypopins-app
+```
+#### 🌐 Option 2: Pull and Run Pre-built Image from Docker Hub
+
+```bash
+# Pull the latest pre-built image from Docker Hub
+docker pull cacarvuai/merrypopins-app:latest
+
+# Run the container
+docker run -p 8501:8501 cacarvuai/merrypopins-app:latest
+```
+
+#### 🌟 Access the App
+
+Once the app is running, you can access it in your web browser at [http://localhost:8501](http://localhost:8501).
+
+#### 🧼 Clean Up
+To stop the app, press `Ctrl+C` in the terminal where it's running. 
+
+If you want to remove the Docker container, you can run:
+
+```bash
+docker rm -f $(docker ps -aq --filter "ancestor=cacarvuai/merrypopins-app:latest")
+```
+
+If you built the image locally, you can remove it with:
+
+```bash
+docker rmi merrypopins-app
+```
+
+### Running the App Locally Without Docker
+
+If you prefer to run the Streamlit app without Docker, you can do so by following these steps:
+
+1. Install the required dependencies for the app:
+   ```bash
+   pip install -r streamlit_app/requirements.txt
+   ```
+
+2. Run the Streamlit app:
+   ```bash
+   streamlit run streamlit_app/app.py
+   ```
+
+3. Open your web browser and go to [http://localhost:8501](http://localhost:8501) to access the app.
+
+---
+
 ## Contributing
 
-Contributions are welcome! Please file issues and submit pull requests on [GitHub](https://github.com/SerpRateAI/merrypopins).
+Contributions are welcome! Please file issues and submit pull requests on [GitHub](https://github.com/SerpRateAI/merrypoppins).
+
+Before submitting a PR:
+
+1. Fork the repository.
+2. Create a feature branch (`git checkout -b feature/foo`).
+3. Commit your changes (`git commit -m "feat: add bar"`).
+4. Push to the branch (`git push origin feature/foo`).
+5. Open a pull request.
 
 ---
 
